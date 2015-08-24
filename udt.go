@@ -159,6 +159,13 @@ const (
 	UDT_RCVDATA    string = "UDT_RCVDATA"
 )
 
+//Use this function to create udt socket. This function returns
+//structure contains udt socket and information about IP
+//family AF_INET or AF_INET6. 
+// parameter - network - IP family ip4 or ip6
+//parameter - isStream - true socket type SOCK_STREAM or SOCK_DGRAM
+
+
 func CreateSocket(network string, isStream bool) (socket *Socket, err error) {
 	var n C.int
 
@@ -191,6 +198,8 @@ func CreateSocket(network string, isStream bool) (socket *Socket, err error) {
 	return
 }
 
+//Binds socket to the passed port number
+
 func Bind(socket *Socket, portno int) (retval int, err error) {
 
 	var serv_addr C.struct_sockaddr_in
@@ -206,8 +215,11 @@ func Bind(socket *Socket, portno int) (retval int, err error) {
 	if retval < 0 {
 		return -1, udtErrDesc("Unable to bind socket")
 	}
-	return
+	return 
 }
+
+//This function turns socket to listening state and makes socket ready to recieve connection
+//requests. Pass backlog parameter to configure number of pending connections.
 
 func Listen(socket *Socket, backlog int) (retval int, err error) {
 
@@ -218,6 +230,8 @@ func Listen(socket *Socket, backlog int) (retval int, err error) {
 	}
 	return
 }
+
+//Retrieves and returns newly accepted socket.
 
 func Accept(socket *Socket) (newSocket *Socket, err error) {
 	var cli_addr C.struct_sockaddr_in
