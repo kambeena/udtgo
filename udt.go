@@ -162,7 +162,7 @@ const (
 //Use this function to create udt socket. This function returns
 //structure contains udt socket and information about IP
 //family AF_INET or AF_INET6. 
-// parameter - network - IP family ip4 or ip6
+//parameter - network - IP family ip4 or ip6
 //parameter - isStream - true socket type SOCK_STREAM or SOCK_DGRAM
 
 
@@ -198,7 +198,8 @@ func CreateSocket(network string, isStream bool) (socket *Socket, err error) {
 	return
 }
 
-//Binds socket to the passed port number
+//Binds socket to the passed port number. If the binding is successful, bind returns 0, otherwise it returns
+//error code (http://udt.sourceforge.net/udt4/doc/ecode.htm) and error object with error details.
 
 func Bind(socket *Socket, portno int) (retval int, err error) {
 
@@ -219,7 +220,9 @@ func Bind(socket *Socket, portno int) (retval int, err error) {
 }
 
 //This function turns socket to listening state and makes socket ready to recieve connection
-//requests. Pass backlog parameter to configure number of pending connections.
+//requests. Pass backlog parameter to configure number of pending connections. If successful,
+// this method returns 0, otherwise it returns error code (http://udt.sourceforge.net/udt4/doc/ecode.htm)
+// and error object with error details.
 
 func Listen(socket *Socket, backlog int) (retval int, err error) {
 
@@ -231,7 +234,8 @@ func Listen(socket *Socket, backlog int) (retval int, err error) {
 	return
 }
 
-//Retrieves and returns newly accepted socket.
+//Retrieves and returns newly accepted socket. If successful,
+// this method returns new socket and error object if unable to accept new socket with error details.
 
 func Accept(socket *Socket) (newSocket *Socket, err error) {
 	var cli_addr C.struct_sockaddr_in
@@ -249,6 +253,12 @@ func Accept(socket *Socket) (newSocket *Socket, err error) {
 
 	return
 }
+
+//The connect method connects to a server socket (in regular mode) or
+// a peer socket (in rendezvous mode) to set up a UDT connection. If successful,
+// this method returns 0, otherwise it returns error code (http://udt.sourceforge.net/udt4/doc/ecode.htm)
+// and error object with error details.
+
 
 func Connect(socket *Socket, host string, portno int) (retval int, err error) {
 
@@ -273,6 +283,11 @@ func Connect(socket *Socket, host string, portno int) (retval int, err error) {
 	return
 }
 
+//Retrives socket status. If successful, this method returns status, otherwise it
+// returns error code (http://udt.sourceforge.net/udt4/doc/ecode.htm)
+// and error object with error details.
+
+
 func Getsockstate(socket *Socket) (status int, err error) {
 	status = int(C.udt_getsockstate(socket.sock))
 	if status < 0 {
@@ -280,6 +295,10 @@ func Getsockstate(socket *Socket) (status int, err error) {
 	}
 	return
 }
+
+//Sends out certain amount of data from an application buffer. If successful, this method returns size of the data send, otherwise it
+//returns error code (http://udt.sourceforge.net/udt4/doc/ecode.htm)
+//and error object with error details.
 
 func Send(socket *Socket, data *byte, length int) (retval int, err error) {
 
@@ -290,6 +309,10 @@ func Send(socket *Socket, data *byte, length int) (retval int, err error) {
 	return
 }
 
+//This method reads certain amount of data into a local memory buffer. If successful, this method returns size of the data received otherwise it
+//returns error code (http://udt.sourceforge.net/udt4/doc/ecode.htm)
+//and error object with error details.
+
 func Recv(socket *Socket, data *byte, length int) (retval int, err error) {
 
 	retval = int(C.udt_recv(socket.sock, (*C.char)(unsafe.Pointer(data)), C.int(length), C.int(0)))
@@ -298,6 +321,12 @@ func Recv(socket *Socket, data *byte, length int) (retval int, err error) {
 	}
 	return
 }
+
+//The sendmsg method sends a message to the peer side. The input parameters contains socket, data, data length, message
+//ttl (optional) (time to live) in milliseconds (default ttl is -1, which means infinite) and flag (optional) indicating if the message
+// should be delivered in order (default is negative). If successful, this method returns size of the message sent otherwise it
+//returns error code (http://udt.sourceforge.net/udt4/doc/ecode.htm)
+//and error object with error details.
 
 func SendMsg(socket *Socket, data *byte, length int, ttl int, inorder bool) (retval int, err error) {
 	var cInorder C.int
@@ -314,6 +343,10 @@ func SendMsg(socket *Socket, data *byte, length int, ttl int, inorder bool) (ret
 	return
 }
 
+//The recvmsg method receives a valid message. If successful, this method returns size of the message sent otherwise it
+//returns error code (http://udt.sourceforge.net/udt4/doc/ecode.htm)
+//and error object with error details.
+
 func RecvMsg(socket *Socket, data *byte, length int) (retval int, err error) {
 
 	retval = int(C.udt_recvmsg(socket.sock, (*C.char)(unsafe.Pointer(data)), C.int(length)))
@@ -323,10 +356,17 @@ func RecvMsg(socket *Socket, data *byte, length int) (retval int, err error) {
 	return
 }
 
+//This method send local file. On success, sendfile returns the actual size of data that has been sent
+//otherwise it returns error code (http://udt.sourceforge.net/udt4/doc/ecode.htm)
+
 func Sendfile(socket *Socket, filepath string, offset *int64, size int64) (retval int64, err error) {
 	
 	return Sendfile2(socket, filepath, offset, size, 7320000)
 }
+
+//This method send local file using defined block size as input parameter. On success, sendfile returns the actual size of data that has been sent
+//otherwise it returns error code (http://udt.sourceforge.net/udt4/doc/ecode.htm)
+//and error object with error details.
 
 func Sendfile2(socket *Socket, filepath string, offset *int64, 
 		size int64, block int) (retval int64, err error) {
@@ -339,10 +379,17 @@ func Sendfile2(socket *Socket, filepath string, offset *int64,
 	return
 }
 
+//The recvfile method reads certain amount of data into a local file. This method usages block size of 366000.
+//On success, recvfile returns the actual size of received data otherwise it returns error code (http://udt.sourceforge.net/udt4/doc/ecode.htm)
+
 func Recvfile(socket *Socket, filepath string, offset *int64, size int64) (retval int64, err error) {
 
 	return Recvfile2(socket, filepath, offset, size, 366000)
 }
+
+//The recvfile method reads certain amount of data into a local file. This method usages block size provided as input parameter.
+//On success, recvfile returns the actual size of received data otherwise it returns error code (http://udt.sourceforge.net/udt4/doc/ecode.htm)
+//and error object with error details.
 
 func Recvfile2(socket *Socket, filepath string, offset *int64, 
 					size int64, block int) (retval int64, err error) {
@@ -354,6 +401,9 @@ func Recvfile2(socket *Socket, filepath string, offset *int64,
 	}
 	return
 }
+
+//The method reads UDT socket options. If successful, returns requested option value otherwise
+//returns error object with error details.
 
 func Getsockopt(socket *Socket, option string) (value interface{}, err error) {
 
@@ -500,6 +550,9 @@ func Getsockopt(socket *Socket, option string) (value interface{}, err error) {
 	return
 }
 
+//This method sets requested UDT socket option. If successful, returns requested option value otherwise
+//returns error object with error details.
+
 func Setsockopt(socket *Socket, option string, value interface{}) (retval int, err error) {
 	var data []byte
 	if option != UDT_LINGER {
@@ -634,6 +687,9 @@ func Setsockopt(socket *Socket, option string, value interface{}) (retval int, e
 	return
 }
 
+//This method retrieves the address informtion of the peer side of a connected UDT socket. If successful returns
+//peer socket address otherwise returns error object with error details.
+
 func Getpeername(socket *Socket) (sockaddr Sockaddr, err error) {
 
 	var sockaddr_in C.struct_sockaddr_in
@@ -654,6 +710,9 @@ func Getpeername(socket *Socket) (sockaddr Sockaddr, err error) {
 
 }
 
+//This method retrieves the address informtion of the UDT socket. If successful returns
+//socket address otherwise returns error object with error details.
+
 func Getsockname(socket *Socket) (sockaddr Sockaddr, err error) {
 
 	var sockaddr_in C.struct_sockaddr_in
@@ -673,6 +732,9 @@ func Getsockname(socket *Socket) (sockaddr Sockaddr, err error) {
 
 	return
 }
+
+//This method retrieves the internal protocol parameters and performance trace. If successful returns
+// Traceinfo struct otherwise returns error object with error details.
 
 func Perfmon(socket *Socket, clear bool) (traceinfo Traceinfo, err error) {
 
