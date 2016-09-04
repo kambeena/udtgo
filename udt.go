@@ -789,6 +789,9 @@ func Perfmon(socket *Socket, clear bool) (traceinfo Traceinfo, err error) {
 
 }
 
+//This methods creates epoll. If successful returns epoll id
+//otherwise returns error object with error details.
+
 func EpollCreate() (eid int, err error) {
 	eid = int(C.udt_epoll_create())
 	if eid < 0 {
@@ -796,6 +799,11 @@ func EpollCreate() (eid int, err error) {
 	}
 	return
 }
+
+// This method binds epoll to provided UDT socket and watches provided event. If successful,
+// this method returns 0, otherwise it returns error code (http://udt.sourceforge.net/udt4/doc/ecode.htm)
+// and error object with error details.
+
 
 func EpollAddUsock(eid int, socket *Socket, events int) (retval int, err error) {
 
@@ -808,6 +816,11 @@ func EpollAddUsock(eid int, socket *Socket, events int) (retval int, err error) 
 
 }
 
+// This method binds epoll to provided system socket and watches provided event. If successful,
+// this method returns 0, otherwise it returns error code (http://udt.sourceforge.net/udt4/doc/ecode.htm)
+// and error object with error details.
+
+
 func EpollAddSsock(eid int, socket C.SYSSOCKET, events int) (retval int, err error) {
 
 	retval = int(C.udt_epoll_add_ssock(C.int(eid), socket,
@@ -819,6 +832,10 @@ func EpollAddSsock(eid int, socket C.SYSSOCKET, events int) (retval int, err err
 
 }
 
+// This method removes epoll from UDT socket. If successful,
+// this method returns 0, otherwise it returns error code (http://udt.sourceforge.net/udt4/doc/ecode.htm)
+// and error object with error details.
+
 func EpollRemoveUsock(eid int, socket *Socket) (retval int, err error) {
 
 	retval = int(C.udt_epoll_remove_usock(C.int(eid), socket.sock))
@@ -829,6 +846,10 @@ func EpollRemoveUsock(eid int, socket *Socket) (retval int, err error) {
 
 }
 
+// This method removes epoll from sysmtem socket. If successful,
+// this method returns 0, otherwise it returns error code (http://udt.sourceforge.net/udt4/doc/ecode.htm)
+// and error object with error details.
+
 func EpollRemoveSsock(eid int, socket C.SYSSOCKET) (retval int, err error) {
 
 	retval = int(C.udt_epoll_remove_ssock(C.int(eid), socket))
@@ -838,6 +859,10 @@ func EpollRemoveSsock(eid int, socket C.SYSSOCKET) (retval int, err error) {
 	return
 
 }
+
+//This method add wait on give read and write UDT and ystem sockets. If successful,
+// this method returns 0, otherwise it returns error code (http://udt.sourceforge.net/udt4/doc/ecode.htm)
+// and error object with error details.
 
 func EpollWait2(eid int, readfds []C.UDTSOCKET, writefds []C.UDTSOCKET, msTimeOut int64,
 	lrfds []C.SYSSOCKET, lwfds []C.SYSSOCKET) (retval int, err error) {
@@ -856,6 +881,10 @@ func EpollWait2(eid int, readfds []C.UDTSOCKET, writefds []C.UDTSOCKET, msTimeOu
 	return
 }
 
+//This method release epoll. If successful,
+// this method returns 0, otherwise it returns error code (http://udt.sourceforge.net/udt4/doc/ecode.htm)
+// and error object with error details.
+
 func EpollRelease(eid int) (retval int, err error) {
 	retval = int(C.udt_epoll_release(C.int(eid)))
 	if retval < 0 {
@@ -863,6 +892,10 @@ func EpollRelease(eid int) (retval int, err error) {
 	}
 	return
 }
+
+//This method closes requested UDT socket. If successful,
+// this method returns 0, otherwise it returns error code (http://udt.sourceforge.net/udt4/doc/ecode.htm)
+// and error object with error details.
 
 func Close(socket *Socket) (retval int, err error) {
 	retval = int(C.udt_close(socket.sock))
@@ -872,6 +905,10 @@ func Close(socket *Socket) (retval int, err error) {
 	return
 }
 
+//This method starts UDT system. If successful,
+// this method returns 0, otherwise it returns error code (http://udt.sourceforge.net/udt4/doc/ecode.htm)
+// and error object with error details.
+
 func Startup() (retval int, err error) {
 	retval = int(C.udt_startup())
 	if retval != 0 {
@@ -879,6 +916,11 @@ func Startup() (retval int, err error) {
 	}
 	return
 }
+
+//This method cleans UDT system. If successful,
+// this method returns 0, otherwise it returns error code (http://udt.sourceforge.net/udt4/doc/ecode.htm)
+// and error object with error details.
+
 
 func Cleanup() (retval int, err error) {
 	retval = int(C.udt_cleanup())
@@ -888,14 +930,20 @@ func Cleanup() (retval int, err error) {
 	return
 }
 
+//This method clears last error.
+
 func Clearlasterror() {
 	C.udt_clearlasterror()
 }
+
+//This method retrieves recent error from UDT sysytem.
 
 func udtErrDesc(appMsg string) (err error) {
 	return fmt.Errorf("%s - UDT Error-%d:%s ", appMsg,
 		C.GoString(C.udt_getlasterror_desc()), int(C.udt_getlasterror_code()))
 }
+
+//Utility method converts boolean to int.
 
 func boolToInt(boolvalue bool) (boolint int) {
 	if boolvalue {
@@ -914,12 +962,16 @@ func getBytes(value interface{}) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
+//This method creates UDT socket.
+
 func CreateSockets(size int) (sockets Sockets) {
 	sockets = Sockets{
 		socks: make([]C.UDTSOCKET, size),
 	}
 	return
 }
+
+//This method creates system socket.
 
 func CreateSysSockets(size int) (sockets SysSockets) {
 	sockets = SysSockets{
