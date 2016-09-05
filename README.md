@@ -7,7 +7,7 @@ rename the file to libudt.so.
 
 For compiling udt use udt source code in udt4c and follow the instructions at http://udt.sourceforge.net/udt4/index.htm.
 
-All UDT functionality is ported udtgo except ability to set User-defined Congestion Control Algorithm. For examples, please refer udt_test.go.
+All UDT functionality is ported udtgo except ability to set User-defined Congestion Control Algorithm. File upload examples are in examples directory.
 
 This cgo wrapper fot UDT ((http://udt.sourceforge.net/) is available under BSD license.
 
