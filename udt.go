@@ -186,7 +186,7 @@ func CreateSocket(network string, isStream bool) (socket *Socket, err error) {
 
 	sock := C.udt_socket(n, trnType, 0)
 
-	if C.UDTSOCKET(sock) == C.UDT_INVALID_SOCK {
+	if  C.UDTSOCKET(sock) == C.UDT_INVALID_SOCK {
 		return nil, udtErrDesc("Invalid socket")
 	}
 
@@ -243,7 +243,7 @@ func Accept(socket *Socket) (newSocket *Socket, err error) {
 	newSock := C.udt_accept(socket.sock, (*C.struct_sockaddr)(unsafe.Pointer(&cli_addr)),
 		&addrlen)
 
-	if C.UDTSOCKET(newSock) == C.UDT_INVALID_SOCK {
+	if  C.UDTSOCKET(newSock) == C.UDT_INVALID_SOCK {
 		return nil, udtErrDesc("Unable to accept on socket")
 	}
 
