@@ -30,9 +30,11 @@ func main()  {
 		portno, _ = strconv.Atoi(os.Args[2])
 	}
 
-	if len(os.Args) == 3 {
+	if len(os.Args) >= 3 {
 		host = os.Args[3]
 	}
+
+	fmt.Printf("staring client to %s %d \n", host, portno)
 
 	s, err := startClient(network, host, portno, isStream)
 

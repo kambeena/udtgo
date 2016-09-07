@@ -76,7 +76,7 @@ func handleRequest(socket *udtgo.Socket) {
 		fmt.Errorf("Unable read file %s", fileName)
 	}
 
-	fmt.Printf("Successfully recived file %s", fi.Name())
+	fmt.Printf("Successfully recived file %s \n", fi.Name())
 }
 
 func receiveRequest(socket *udtgo.Socket) (request string, err error){
