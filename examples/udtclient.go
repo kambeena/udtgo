@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"os"
 	"strconv"
+
 )
 
 func main()  {
@@ -30,7 +31,7 @@ func main()  {
 		portno, _ = strconv.Atoi(os.Args[2])
 	}
 
-	if len(os.Args) >= 3 {
+	if len(os.Args) >= 4 {
 		host = os.Args[3]
 	}
 
@@ -39,13 +40,14 @@ func main()  {
 	s, err := startClient(network, host, portno, isStream)
 
 	if err != nil {
-		fmt.Errorf("Unable to start client")
+		fmt.Printf("Unable to start client %s %d error:%s", host, portno, err)
+		return
 	}
 	defer udtgo.Close(s)
 
 	fi, err := os.Lstat(fileName)
 	if err != nil {
-		fmt.Errorf("Unable read file %s", fileName)
+		fmt.Printf("Unable read file %s error:%s", fileName, err)
 		return
 	}
 
@@ -63,7 +65,8 @@ func main()  {
 	n, err := udtgo.Send(s, &msg[0], len(msg))
 
 	if err != nil {
-		fmt.Errorf("Unable to send request %s %d", err, n)
+		fmt.Printf("Unable to send request %s %d", err, n)
+		return
 	}
 
 	fmt.Printf("Request sent %s \n", string(msg))
@@ -74,7 +77,7 @@ func main()  {
 	datasent, err := udtgo.Sendfile(s, fileName, &offset, fi.Size())
 
 	if err != nil {
-		fmt.Errorf("Unable to send file %s %d", err, datasent)
+		fmt.Printf("Unable to send file %s %d %s", err, datasent, err)
 	}
 
 

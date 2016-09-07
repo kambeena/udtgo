@@ -277,7 +277,7 @@ func Connect(socket *Socket, host string, portno int) (retval int, err error) {
 
 	retval = int(C.udt_connect(socket.sock, (*C.struct_sockaddr)(unsafe.Pointer(&serv_addr)),
 		C.int(unsafe.Sizeof(serv_addr))))
-	if retval < 0 {
+	if retval != 0 {
 		return retval, udtErrDesc("Unable to connect to the socket")
 	}
 	return
@@ -939,7 +939,7 @@ func Clearlasterror() {
 //This method retrieves recent error from UDT sysytem.
 
 func udtErrDesc(appMsg string) (err error) {
-	return fmt.Errorf("%s - UDT Error-%d:%s ", appMsg,
+	return fmt.Errorf("%s - UDT Error-%s:%d ", appMsg,
 		C.GoString(C.udt_getlasterror_desc()), int(C.udt_getlasterror_code()))
 }
 

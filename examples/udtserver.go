@@ -6,6 +6,8 @@ import (
 	"strings"
 	"encoding/json"
 	"os"
+	"log"
+	"strconv"
 )
 
 
@@ -19,20 +21,26 @@ func main() {
 	network := "ip4"
 	isStream := true
 
+	if len(os.Args) >= 2 {
+		portno, _ = strconv.Atoi(os.Args[1])
+	}
+
 	s, err := startServer(portno, network, isStream)
 	if err != nil {
-		fmt.Errorf("Unable to start server")
+		fmt.Printf("Unable to start server at %d %s", portno)
+		log.Fatal(err)
 	}
 
 	defer udtgo.Close(s)
 
-	fmt.Printf("Server at port %d \n", portno)
+	fmt.Printf("Started Server at port %d \n", portno)
 
 
 	for {
 		ns, err := udtgo.Accept(s)
 		if err != nil {
-			fmt.Errorf("Unable to accept request on socket")
+			fmt.Printf("Unable to accept request on socket")
+			continue
 		}
 
 		go handleRequest(ns)
@@ -48,6 +56,7 @@ func handleRequest(socket *udtgo.Socket) {
 
 	if err != nil {
 		fmt.Printf("Unable to get request %s", err)
+		return
 	}
 
 	//ummarshall request
@@ -68,12 +77,14 @@ func handleRequest(socket *udtgo.Socket) {
 	n, err := udtgo.Recvfile(socket, fileName, &offset, fileSize)
 
 	if err != nil {
-		fmt.Errorf("Unable to receive file %s %d", err, n)
+		fmt.Printf("Unable to receive file %s %d", err, n)
+		return
 	}
 
 	fi, err := os.Lstat(fileName)
 	if err != nil {
-		fmt.Errorf("Unable read file %s", fileName)
+		fmt.Printf("Unable read file %s", fileName)
+		return
 	}
 
 	fmt.Printf("Successfully recived file %s \n", fi.Name())
