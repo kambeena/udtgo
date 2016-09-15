@@ -42,10 +42,6 @@ package udtgo
 // #cgo LDFLAGS: /usr/local/lib/libudt.so
 //
 // #include "udtc.h"
-// #include <arpa/inet.h>
-// #include <string.h>
-// #include <stdlib.h>
-// #include <sys/socket.h>
 import "C"
 
 import (
@@ -55,6 +51,7 @@ import (
 	"net"
 	"reflect"
 	"unsafe"
+	"syscall"
 )
 
 type Socket struct {
@@ -170,18 +167,18 @@ func CreateSocket(network string, isStream bool) (socket *Socket, err error) {
 	var n C.int
 
 	if network == "ip4" {
-		n = C.AF_INET
+		n = C.int(syscall.AF_INET)
 	} else if network == "ip6" {
-		n = C.AF_INET6
+		n = C.int(syscall.AF_INET6)
 	} else {
 		return nil, fmt.Errorf("network must be either ip4 or ip6")
 	}
 
 	var trnType C.int
 	if isStream {
-		trnType = C.SOCK_STREAM
+		trnType = C.SOCK_STREAM //data streaming
 	} else {
-		trnType = C.SOCK_DGRAM
+		trnType = C.SOCK_DGRAM //messaging
 	}
 
 	sock := C.udt_socket(n, trnType, 0)
@@ -203,21 +200,28 @@ func CreateSocket(network string, isStream bool) (socket *Socket, err error) {
 
 func Bind(socket *Socket, portno int) (retval int, err error) {
 
-	var serv_addr C.struct_sockaddr_in
-	serv_addr.sin_family = C.sa_family_t(socket.af)
-	serv_addr.sin_port = C.in_port_t(C.htons(C.uint16_t(portno)))
-	serv_addr.sin_addr.s_addr = C.INADDR_ANY
-	if _, err := C.memset(unsafe.Pointer(&(serv_addr.sin_zero)), 0, 8); err != nil {
-		return -1, fmt.Errorf("Unable to zero sin_zero")
+	hostStr := ""
+
+	if socket.af == syscall.AF_INET6 {
+		hostStr = "[0:0:0:0:0:0:0:1]"
 	}
 
-	retval = int(C.udt_bind(socket.sock, (*C.struct_sockaddr)(unsafe.Pointer(&serv_addr)),
-		C.int(unsafe.Sizeof(serv_addr))))
-	if retval < 0 {
+
+	rsa, salen, err := createSockaddr(hostStr, portno)
+	if err != nil {
+		return -1, fmt.Errorf("could not convert syscall.Sockaddr to syscall.RawSockaddrAny %s", err)
+	}
+
+	csa := (*C.struct_sockaddr)(unsafe.Pointer(rsa))
+	if C.udt_bind(socket.sock, csa, C.int(salen)) != 0 {
 		return -1, udtErrDesc("Unable to bind socket")
 	}
-	return 
+
+	return
+
 }
+
+
 
 //This function turns socket to listening state and makes socket ready to recieve connection
 //requests. Pass backlog parameter to configure number of pending connections. If successful,
@@ -238,9 +242,11 @@ func Listen(socket *Socket, backlog int) (retval int, err error) {
 // this method returns new socket and error object if unable to accept new socket with error details.
 
 func Accept(socket *Socket) (newSocket *Socket, err error) {
-	var cli_addr C.struct_sockaddr_in
+
+	var rsa syscall.RawSockaddrAny
 	var addrlen C.int
-	newSock := C.udt_accept(socket.sock, (*C.struct_sockaddr)(unsafe.Pointer(&cli_addr)),
+
+	newSock := C.udt_accept(socket.sock, (*C.struct_sockaddr)(unsafe.Pointer(&rsa)),
 		&addrlen)
 
 	if  C.int(newSock) == C.int(C.UDT_INVALID_SOCK) {
@@ -270,13 +276,18 @@ func Connect(socket *Socket, host string, portno int) (retval int, err error) {
 
 	resolvedHost := addrs[0]
 
-	var serv_addr C.struct_sockaddr_in
-	serv_addr.sin_family = C.sa_family_t(socket.af)
-	serv_addr.sin_port = C.in_port_t(C.htons(C.uint16_t(portno)))
-	C.inet_pton(socket.af, C.CString(resolvedHost), unsafe.Pointer(&serv_addr.sin_addr))
+	if socket.af == syscall.AF_INET6 {
+		resolvedHost = fmt.Sprintf("[%s]", resolvedHost)
+	}
 
-	retval = int(C.udt_connect(socket.sock, (*C.struct_sockaddr)(unsafe.Pointer(&serv_addr)),
-		C.int(unsafe.Sizeof(serv_addr))))
+	rsa, salen, err := createSockaddr(resolvedHost, portno)
+
+	if err != nil {
+		return -1, fmt.Errorf("could not convert syscall.Sockaddr to syscall.RawSockaddrAny %s", err)
+	}
+
+	retval = int(C.udt_connect(socket.sock, (*C.struct_sockaddr)(unsafe.Pointer(rsa)),
+		C.int(salen)))
 	if retval != 0 {
 		return retval, udtErrDesc("Unable to connect to the socket")
 	}
@@ -692,7 +703,7 @@ func Setsockopt(socket *Socket, option string, value interface{}) (retval int, e
 
 func Getpeername(socket *Socket) (sockaddr Sockaddr, err error) {
 
-	var sockaddr_in C.struct_sockaddr_in
+	var sockaddr_in  syscall.RawSockaddrAny
 	var namelen C.int
 
 	retval := int(C.udt_getpeername(socket.sock,
@@ -701,9 +712,12 @@ func Getpeername(socket *Socket) (sockaddr Sockaddr, err error) {
 		return sockaddr, udtErrDesc("Unable to get socket peername")
 	}
 
+	addrStr, _ := parseAddr(&sockaddr_in)
+
+
 	sockaddr = Sockaddr{
-		sa_family: int(sockaddr_in.sin_family),
-		sa_data:   C.GoString(C.inet_ntoa(sockaddr_in.sin_addr)),
+		sa_family: int(sockaddr_in.Addr.Family),
+		sa_data:addrStr,
 	}
 
 	return
@@ -715,7 +729,7 @@ func Getpeername(socket *Socket) (sockaddr Sockaddr, err error) {
 
 func Getsockname(socket *Socket) (sockaddr Sockaddr, err error) {
 
-	var sockaddr_in C.struct_sockaddr_in
+	var sockaddr_in  syscall.RawSockaddrAny
 	var namelen C.int
 
 	retval := int(C.udt_getsockname(socket.sock,
@@ -725,10 +739,13 @@ func Getsockname(socket *Socket) (sockaddr Sockaddr, err error) {
 		return sockaddr, udtErrDesc("Unable to get socket name")
 	}
 
+	addrStr, _ := parseAddr(&sockaddr_in)
+
 	sockaddr = Sockaddr{
-		sa_family: int(sockaddr_in.sin_family),
-		sa_data:   C.GoString(C.inet_ntoa(sockaddr_in.sin_addr)),
+		sa_family: int(sockaddr_in.Addr.Family),
+		sa_data:addrStr,
 	}
+
 
 	return
 }
@@ -979,3 +996,85 @@ func CreateSysSockets(size int) (sockets SysSockets) {
 	}
 	return
 }
+
+//creates RawSockaddrAny structure from host string and port number. This strucure
+//is used for calling UDT C api
+
+func createSockaddr(host string, portno int) (rsa *syscall.RawSockaddrAny, salen Socketlen, err error) {
+
+	networkStr := fmt.Sprintf("%s:%d", host, portno)
+	udpAddr, err := net.ResolveUDPAddr("udp", networkStr)
+
+	if err != nil {
+		return nil, 0, fmt.Errorf("Unable to create network address")
+		return
+	}
+
+	var sa syscall.Sockaddr
+	ip := udpAddr.IP
+	zone := udpAddr.Zone
+
+
+	switch {
+	case len(ip) < net.IPv4len:
+		buf := [4]byte{0, 0, 0, 0}
+		sa =  &syscall.SockaddrInet4{Addr: buf}
+
+
+	case ip.To4() != nil:
+		var buf [4]byte
+		copy(buf[:], ip[12:16])
+		sa = &syscall.SockaddrInet4{Addr: buf}
+
+	case ip.To16() != nil:
+		var buf [16]byte
+		copy(buf[:], ip)
+		sa = &syscall.SockaddrInet6{Addr: buf, ZoneId: uint32(ipv6ZoneToInt(zone))}
+	}
+
+	switch sa := sa.(type) {
+	case *syscall.SockaddrInet4:
+		sa.Port = udpAddr.Port
+	case *syscall.SockaddrInet6:
+		sa.Port = udpAddr.Port
+	default:
+		return nil, 0, fmt.Errorf("Error creating socket address")
+	}
+
+	rsa, salen, err = SockaddrToRawSockAny(sa)
+	if err != nil {
+		return nil, 0, fmt.Errorf("could not convert syscall.Sockaddr to syscall.RawSockaddrAny %s", err)
+	}
+
+	return rsa, salen, nil
+
+}
+
+func ipv6ZoneToInt(zone string) int {
+	if zone == "" {
+		return 0
+	}
+	if ifi, err := net.InterfaceByName(zone); err == nil {
+		return ifi.Index
+	}
+	n, _, _ := dtoi(zone, 0)
+	return n
+}
+
+const big = 0xFFFFFF
+
+
+func dtoi(s string, i0 int) (n int, i int, ok bool) {
+	n = 0
+	for i = i0; i < len(s) && '0' <= s[i] && s[i] <= '9'; i++ {
+		n = n*10 + int(s[i]-'0')
+		if n >= big {
+			return 0, i, false
+		}
+	}
+	if i == i0 {
+		return 0, i, false
+	}
+	return n, i, true
+}
+

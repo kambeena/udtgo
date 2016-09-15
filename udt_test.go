@@ -58,6 +58,7 @@ const (
 	PORT9006
 	PORT9007
 	PORT9008
+	PORT9009
 )
 
 func TestMain(m *testing.M) {
@@ -494,8 +495,8 @@ func TestSocknames(t *testing.T) {
 	if err != nil {
 		t.Errorf("Unable to get sock name %s", err)
 	}
-	if sockaddr.sa_data != "0.0.0.0" {
-		t.Errorf("Unable to get sock name")
+	if (sockaddr.sa_data != "127.0.0.1") && (sockaddr.sa_data != "0.0.0.0") {
+		t.Errorf("Unable to get sock name %s", sockaddr.sa_data)
 	}
 
 	sc, err := startClient("ip4", "localhost", PORT9005, true)
@@ -509,8 +510,43 @@ func TestSocknames(t *testing.T) {
 	if err != nil {
 		t.Errorf("Unable to get sock peer name %s", err)
 	}
-	if sockaddr.sa_data != "127.0.0.1" {
-		t.Errorf("Unable to get peer sock name")
+	if (sockaddr.sa_data != "127.0.0.1") && (sockaddr.sa_data != "0.0.0.0") {
+		t.Errorf("Unable to get sock name %s", sockaddr.sa_data)
+	}
+
+}
+
+func TestIPv6Socknames(t *testing.T) {
+	s, err := startServer(PORT9009, "ip6", true)
+	if err != nil {
+		t.Errorf("Unable to startserver %s", err)
+		return
+	}
+	defer Close(s)
+
+	sockaddr, err := Getsockname(s)
+	if err != nil {
+		t.Errorf("Unable to get sock name %s", err)
+	}
+	if sockaddr.sa_data != "::1" {
+		t.Errorf("Unable to get sock name %s", sockaddr.sa_data)
+		return
+	}
+
+	sc, err := startClient("ip6", "0:0:0:0:0:0:0:1", PORT9009, true)
+
+	if err != nil {
+		t.Errorf("Unable to start client %s", err)
+		return
+	}
+	defer Close(sc)
+
+	sockaddr, err = Getpeername(sc)
+	if err != nil {
+		t.Errorf("Unable to get sock peer name %s", err)
+	}
+	if sockaddr.sa_data != "::1" {
+		t.Errorf("Unable to get sock name %s", sockaddr.sa_data)
 	}
 
 }
@@ -648,7 +684,7 @@ func startServer(portno int, network string, isStream bool) (socket *Socket, err
 	}
 	n, err := Bind(socket, portno)
 	if err != nil {
-		return nil, fmt.Errorf("Unable to bind socket :%d", n)
+		return nil, fmt.Errorf("Unable to bind socket :%d %s", n, err)
 	}
 	n, err = Listen(socket, 4)
 	if err != nil {
