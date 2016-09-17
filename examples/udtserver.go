@@ -8,6 +8,7 @@ import (
 	"os"
 	"log"
 	"strconv"
+	"path"
 )
 
 
@@ -20,9 +21,14 @@ func main() {
 	portno := 9000
 	network := "ip4"
 	isStream := true
+	uploadDir := ""
 
 	if len(os.Args) >= 2 {
 		portno, _ = strconv.Atoi(os.Args[1])
+	}
+
+	if len(os.Args) >= 3 {
+		uploadDir = os.Args[2]
 	}
 
 	s, err := startServer(portno, network, isStream)
@@ -43,12 +49,12 @@ func main() {
 			continue
 		}
 
-		go handleRequest(ns)
+		go handleRequest(ns, uploadDir)
 	}
 
 }
 
-func handleRequest(socket *udtgo.Socket) {
+func handleRequest(socket *udtgo.Socket, uploadDir string) {
 
 	defer udtgo.Close(socket)
 	//receive message
@@ -69,6 +75,20 @@ func handleRequest(socket *udtgo.Socket) {
 	}
 
 	fileName := reqObject["fileName"].(string)
+
+	if uploadDir != "" {
+		fileName = fmt.Sprintf("%s%s", uploadDir, fileName)
+	}
+
+	base := path.Dir(fileName)
+
+	err = os.MkdirAll(base, os.ModePerm)
+
+	if err != nil {
+		fmt.Printf("Unable to create dir path %s", err)
+		return
+	}
+
 	fileSize := int64(reqObject["fileSize"].(float64))
 	fmt.Printf("Received request fileName %s fileSize %v \n", fileName, fileSize)
 
